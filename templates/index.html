@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GuitarVision - Pick Grip Analysis</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            min-height: 100vh;
+            color: #fff;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            padding: 20px 0;
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .video-container {
+            background: #000;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .video-container img {
+            width: 100%;
+            display: block;
+        }
+
+        .analysis-panel {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .status-indicator.correct {
+            background: rgba(0, 255, 0, 0.2);
+            border-left: 5px solid #00ff00;
+        }
+
+        .status-indicator.warning {
+            background: rgba(255, 165, 0, 0.2);
+            border-left: 5px solid #ffa500;
+        }
+
+        .status-indicator.error {
+            background: rgba(255, 0, 0, 0.2);
+            border-left: 5px solid #ff0000;
+        }
+
+        .status-icon {
+            font-size: 2.5rem;
+        }
+
+        .status-text h2 {
+            font-size: 1.5rem;
+            margin-bottom: 5px;
+        }
+
+        .status-text p {
+            opacity: 0.9;
+        }
+
+        .latency-indicator {
+            font-size: 0.8rem;
+            opacity: 0.6;
+            margin-top: 3px;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .metric-card {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .metric-card .label {
+            font-size: 0.9rem;
+            opacity: 0.7;
+            margin-bottom: 5px;
+        }
+
+        .metric-card .value {
+            font-size: 1.8rem;
+            font-weight: bold;
+        }
+
+        .recommendation {
+            background: rgba(255, 255, 255, 0.15);
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+
+        .recommendation h3 {
+            margin-bottom: 10px;
+            font-size: 1.2rem;
+        }
+
+        .recommendation p {
+            font-size: 1.1rem;
+            line-height: 1.6;
+        }
+
+        .finger-curvature {
+            margin-top: 20px;
+        }
+
+        .finger-curvature h3 {
+            margin-bottom: 15px;
+        }
+
+        .finger-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .finger-bar .name {
+            width: 80px;
+            font-size: 0.9rem;
+        }
+
+        .finger-bar .bar-container {
+            flex: 1;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .finger-bar .bar-fill {
+            height: 100%;
+            transition: width 0.3s ease, background 0.3s ease;
+            border-radius: 10px;
+        }
+
+        .finger-bar .bar-fill.low {
+            background: #ff0000;
+        }
+
+        .finger-bar .bar-fill.medium {
+            background: #ffa500;
+        }
+
+        .finger-bar .bar-fill.high {
+            background: #00ff00;
+        }
+
+        .tolerance-control {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .tolerance-control h3 {
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+        }
+
+        .tolerance-slider {
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.2);
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .tolerance-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #fff;
+            cursor: pointer;
+        }
+
+        .tolerance-slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #fff;
+            cursor: pointer;
+            border: none;
+        }
+
+        .tolerance-value {
+            text-align: center;
+            margin-top: 10px;
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 1.2rem;
+        }
+
+        .loading::after {
+            content: '';
+            animation: dots 1.5s infinite;
+        }
+
+        @keyframes dots {
+            0%, 20% { content: '.'; }
+            40% { content: '..'; }
+            60%, 100% { content: '...'; }
+        }
+
+        @media (min-width: 768px) {
+            .main-content {
+                grid-template-columns: 2fr 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎸 GuitarVision</h1>
+            <p>Real-time Pick Grip Analysis</p>
+        </header>
+
+        <div class="main-content">
+            <div class="video-container">
+                <img src="{{ url_for('video_feed') }}" alt="Video Feed">
+            </div>
+
+            <div class="analysis-panel">
+                <div id="status" class="status-indicator correct">
+                    <div class="status-icon">✓</div>
+                    <div class="status-text">
+                        <h2 id="grip-type">Analyzing...</h2>
+                        <p id="confidence">Waiting for data</p>
+                    </div>
+                </div>
+
+                <div class="tolerance-control">
+                    <h3>🎯 Strictness Level</h3>
+                    <input type="range" 
+                           id="tolerance" 
+                           class="tolerance-slider" 
+                           min="5" 
+                           max="50" 
+                           value="{{ tolerance * 100 }}"
+                           step="5">
+                    <div class="tolerance-value">
+                        <span id="tolerance-display">{{ (tolerance * 100) | round(0) | int }}%</span>
+                        <span style="font-size: 0.9rem; opacity: 0.7;">
+                            ({{ 'Very Strict' if tolerance <= 0.10 else 'Strict' if tolerance <= 0.20 else 'Medium' if tolerance <= 0.35 else 'Lenient' }})
+                        </span>
+                    </div>
+                </div>
+
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="label">Pinch Distance</div>
+                        <div class="value" id="pinch-distance">-</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="label">Pinch Angle</div>
+                        <div class="value" id="pinch-angle">-</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="label">Thumb Angle</div>
+                        <div class="value" id="thumb-angle">-</div>
+                    </div>
+                </div>
+
+                <div class="recommendation">
+                    <h3>💡 Recommendation</h3>
+                    <p id="recommendation">Wait for analysis...</p>
+                </div>
+
+                <div class="finger-curvature">
+                    <h3>Finger Curvature</h3>
+                    <div id="finger-bars">
+                        <div class="loading">Loading</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Обновление данных анализа каждые 500ms
+        function updateAnalysis() {
+            fetch('/api/analysis')
+                .then(response => response.json())
+                .then(data => {
+                    // Обновляем статус
+                    const statusEl = document.getElementById('status');
+                    const gripTypeEl = document.getElementById('grip-type');
+                    const confidenceEl = document.getElementById('confidence');
+                    const recommendationEl = document.getElementById('recommendation');
+                    
+                    statusEl.className = 'status-indicator ' + data.status;
+                    gripTypeEl.textContent = data.grip_type;
+                    confidenceEl.textContent = `Confidence: ${data.confidence}%`;
+                    recommendationEl.textContent = data.recommendation;
+
+                    // Обновляем метрики
+                    document.getElementById('pinch-distance').textContent = data.pinch_distance;
+                    document.getElementById('pinch-angle').textContent = data.pinch_angle + '°';
+                    document.getElementById('thumb-angle').textContent = data.thumb_angle + '°';
+
+                    // Обновляем индикаторы пальцев
+                    updateFingerBars(data.finger_curvature);
+                })
+                .catch(error => {
+                    console.log('Analysis update failed:', error);
+                });
+        }
+
+        function updateFingerBars(curvature) {
+            const container = document.getElementById('finger-bars');
+            const fingerNames = {
+                'thumb': 'Thumb',
+                'index': 'Index',
+                'middle': 'Middle',
+                'ring': 'Ring',
+                'pinky': 'Pinky'
+            };
+
+            let html = '';
+            for (const [finger, value] of Object.entries(curvature)) {
+                const percentage = Math.min(value / 180 * 100, 100);
+                let barClass = 'low';
+                if (value >= 60) {
+                    barClass = 'high';
+                } else if (value >= 30) {
+                    barClass = 'medium';
+                }
+
+                html += `
+                    <div class="finger-bar">
+                        <div class="name">${fingerNames[finger]}</div>
+                        <div class="bar-container">
+                            <div class="bar-fill ${barClass}" style="width: ${percentage}%"></div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            container.innerHTML = html;
+        }
+
+        // Обновляем tolerance
+        const toleranceSlider = document.getElementById('tolerance');
+        const toleranceDisplay = document.getElementById('tolerance-display');
+
+        let toleranceTimeout = null;
+        toleranceSlider.addEventListener('input', function() {
+            const tolerance = this.value / 100;
+            toleranceDisplay.textContent = this.value + '%';
+            
+            // Debounce отправки запроса
+            if (toleranceTimeout) {
+                clearTimeout(toleranceTimeout);
+            }
+            
+            toleranceTimeout = setTimeout(() => {
+                fetch('/api/tolerance', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ tolerance: tolerance })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Tolerance updated:', data.message);
+                })
+                .catch(error => {
+                    console.log('Failed to update tolerance:', error);
+                });
+            }, 500);
+        });
+
+        // Обновляем данные каждые 500ms
+        setInterval(updateAnalysis, 500);
+        updateAnalysis();
+    </script>
+</body>
+</html>
