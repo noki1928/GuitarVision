@@ -61,22 +61,20 @@ def generate_frames():
     is_running = True
     
     while is_running:
-        # Читаем свежий кадр (сбрасываем буфер)
+        # Читаем кадр с камеры (CAP_PROP_BUFFERSIZE=1 уже обеспечивает свежий кадр)
         ret, frame = camera.read()
         if not ret:
             time.sleep(0.01)
             continue
         
-        # Считываем ещё раз чтобы получить самый свежий кадр
-        ret, frame = camera.read()
-        if not ret:
-            continue
+        # Зеркальное отражение (flip) для естественного отображения
+        frame = cv2.flip(frame, 1)
         
-        # Отрисовка landmarks (без текста)
+        # Отрисовка landmarks и детекция (один вызов MediaPipe)
         frame = tracker.find_hands(frame, draw=True)
         
-        # Анализ хвата НА ЭТОМ ЖЕ КАДРЕ
-        landmarks = tracker.get_landmarks(frame)
+        # Получаем кэшированные landmarks (без повторной детекции)
+        landmarks = tracker.get_cached_landmarks()
         
         if landmarks:
             analysis = classifier.analyze_grip(landmarks)
@@ -132,9 +130,14 @@ def get_analysis():
     
     if current_analysis is None:
         return jsonify({
-            'status': 'no_hand',
-            'message': 'No hand detected',
-            'timestamp': 0
+            'status': 'error',
+            'grip_type': 'Кисть не обнаружена',
+            'confidence': 0,
+            'pinch_distance': 0,
+            'hand_rotation': 0,
+            'recommendation': 'Поместите руку в кадр камеры',
+            'timestamp': 0,
+            'age_ms': 0
         })
     
     analysis = current_analysis
@@ -143,9 +146,11 @@ def get_analysis():
     status_class = 'correct'
     if analysis.grip_type == GripType.CORRECT:
         status_class = 'correct'
-    elif analysis.grip_type in [GripType.TOO_TIGHT, GripType.TOO_LOOSE]:
+    elif analysis.grip_type == GripType.TOO_TIGHT:
+        status_class = 'error'
+    elif analysis.grip_type == GripType.FINGERS_OPEN:
         status_class = 'warning'
-    else:
+    elif analysis.grip_type == GripType.ROTATED:
         status_class = 'error'
     
     # Вычисляем задержку анализа
@@ -156,12 +161,8 @@ def get_analysis():
         'grip_type': analysis.grip_type.value,
         'confidence': round(analysis.confidence * 100, 1),
         'pinch_distance': round(analysis.pinch_distance, 1),
-        'pinch_angle': round(analysis.pinch_angle, 1),
-        'thumb_angle': round(analysis.thumb_angle, 1),
+        'hand_rotation': round(analysis.hand_rotation, 1),
         'recommendation': analysis.recommendation,
-        'finger_curvature': {
-            k: round(v, 1) for k, v in analysis.finger_curvature.items()
-        },
         'timestamp': analysis_timestamp,
         'age_ms': round(age * 1000, 0)
     })

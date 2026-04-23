@@ -41,6 +41,7 @@ class HandTracker:
         )
         self.detector = vision.HandLandmarker.create_from_options(options)
         self.results = None
+        self.cached_landmarks = None  # Кэш для избежания повторной детекции
 
     def find_hands(self, frame: np.ndarray, draw: bool = True) -> np.ndarray:
         """
@@ -61,6 +62,17 @@ class HandTracker:
 
         # Синхронная детекция
         self.results = self.detector.detect(mp_image)
+
+        # Кэшируем landmarks для повторного использования
+        if self.results and self.results.hand_landmarks:
+            hand_lms = self.results.hand_landmarks[0]
+            h, w, _ = frame.shape
+            self.cached_landmarks = []
+            for lm in hand_lms:
+                x, y, z = lm.x * w, lm.y * h, lm.z
+                self.cached_landmarks.append(np.array([x, y, z]))
+        else:
+            self.cached_landmarks = None
 
         # Рисуем landmarks
         if self.results and self.results.hand_landmarks and draw:
@@ -98,6 +110,8 @@ class HandTracker:
 
     def get_landmarks(self, frame: np.ndarray, hand_num: int = 0) -> list | None:
         """
+        DEPRECATED: Используйте get_cached_landmarks() для избежания повторной детекции.
+        
         Получение координат landmarks для указанной руки.
 
         Args:
@@ -123,6 +137,16 @@ class HandTracker:
                     landmarks.append(np.array([x, y, z]))
                 return landmarks
         return None
+    
+    def get_cached_landmarks(self) -> list | None:
+        """
+        Получение кэшированных landmarks из последнего вызова find_hands().
+        Избегает повторной детекции MediaPipe.
+
+        Returns:
+            Список координат landmarks или None
+        """
+        return self.cached_landmarks
 
     def get_finger_tips(self, landmarks: list) -> dict:
         """
@@ -258,6 +282,9 @@ def main():
                 break
 
             frame_count += 1
+            
+            # Зеркальное отражение (flip) для естественного отображения
+            frame = cv2.flip(frame, 1)
 
             # Отслеживание кисти (рисуем всегда)
             frame = tracker.find_hands(frame, draw=True)

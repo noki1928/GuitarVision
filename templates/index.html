@@ -1,10 +1,49 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GuitarVision - Pick Grip Analysis</title>
+    <title>GuitarVision - Анализ хвата медиатора</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
+        :root {
+            /* Природная палитра */
+            --bg-gradient-start: #f0f9f4;
+            --bg-gradient-end: #e8f5f0;
+            --bg-card: #ffffff;
+            --text-primary: #1a3a2e;
+            --text-secondary: #4a6b5e;
+            --text-muted: #6b8578;
+            
+            /* Статусы */
+            --success: #2d6a4f;
+            --success-bg: #d8f3dc;
+            --success-border: #95d5b2;
+            
+            --warning: #d97706;
+            --warning-bg: #fef3c7;
+            --warning-border: #fbbf24;
+            
+            --error: #c44536;
+            --error-bg: #fee2e2;
+            --error-border: #fca5a5;
+            
+            --info: #52b788;
+            --info-bg: #e8f5f0;
+            --info-border: #95d5b2;
+            
+            /* Дополнительные */
+            --border: #d1e7dd;
+            --shadow: rgba(29, 78, 59, 0.08);
+            --shadow-lg: rgba(29, 78, 59, 0.12);
+            --accent: #40916c;
+            
+            /* Типографика */
+            --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -12,429 +51,574 @@
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            font-family: var(--font-family);
+            background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
+            color: var(--text-primary);
             min-height: 100vh;
-            color: #fff;
+            display: flex;
+            flex-direction: column;
+            line-height: 1.6;
         }
 
-        .container {
+        /* Header */
+        header {
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            box-shadow: 0 2px 8px var(--shadow);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-container {
             max-width: 1400px;
             margin: 0 auto;
-            padding: 20px;
+            padding: 16px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
-        header {
-            text-align: center;
-            padding: 20px 0;
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            text-decoration: none;
+            letter-spacing: -0.02em;
         }
 
-        header h1 {
-            font-size: 2.5rem;
-            margin-bottom: 10px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        .nav-buttons {
+            display: flex;
+            gap: 12px;
+            align-items: center;
         }
 
-        header p {
-            font-size: 1.1rem;
-            opacity: 0.9;
+        .nav-btn {
+            padding: 8px 16px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-primary);
+            border-radius: 8px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            display: inline-block;
         }
 
-        .main-content {
+        .nav-btn:hover {
+            background: var(--info-bg);
+            border-color: var(--info-border);
+            color: var(--accent);
+        }
+
+        .nav-btn.primary {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+
+        .nav-btn.primary:hover {
+            background: var(--success);
+            border-color: var(--success);
+        }
+
+        /* Main Content */
+        main {
+            flex: 1;
+            max-width: 1400px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 32px;
+        }
+
+        .content-grid {
             display: grid;
-            grid-template-columns: 1fr;
-            gap: 20px;
-            margin-top: 20px;
+            grid-template-columns: 1fr 400px;
+            gap: 32px;
+            align-items: start;
+        }
+
+        /* Video Container */
+        .video-section {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 4px 16px var(--shadow);
+            border: 1px solid var(--border);
+        }
+
+        .video-header {
+            margin-bottom: 16px;
+        }
+
+        .video-header h2 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .video-header p {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
         }
 
         .video-container {
+            width: 100%;
             background: #000;
-            border-radius: 15px;
+            border-radius: 12px;
             overflow: hidden;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            box-shadow: 0 4px 12px var(--shadow-lg);
+            aspect-ratio: 16 / 9;
+            position: relative;
         }
 
         .video-container img {
             width: 100%;
+            height: 100%;
             display: block;
+            object-fit: cover;
+            object-position: center;
         }
 
-        .analysis-panel {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            border-radius: 15px;
-            padding: 25px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        /* Analysis Panel */
+        .analysis-section {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .status-card {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 4px 16px var(--shadow);
+            border: 1px solid var(--border);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .status-card.loading {
+            opacity: 0.7;
+        }
+
+        .status-header {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 16px;
         }
 
         .status-indicator {
             display: flex;
             align-items: center;
-            gap: 15px;
-            margin-bottom: 20px;
-            padding: 15px;
-            border-radius: 10px;
-            transition: all 0.3s ease;
+            gap: 16px;
+            padding: 20px;
+            border-radius: 12px;
+            background: var(--info-bg);
+            border: 2px solid var(--info-border);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .status-indicator.correct {
-            background: rgba(0, 255, 0, 0.2);
-            border-left: 5px solid #00ff00;
+            background: var(--success-bg);
+            border-color: var(--success-border);
         }
 
         .status-indicator.warning {
-            background: rgba(255, 165, 0, 0.2);
-            border-left: 5px solid #ffa500;
+            background: var(--warning-bg);
+            border-color: var(--warning-border);
         }
 
         .status-indicator.error {
-            background: rgba(255, 0, 0, 0.2);
-            border-left: 5px solid #ff0000;
+            background: var(--error-bg);
+            border-color: var(--error-border);
         }
 
         .status-icon {
-            font-size: 2.5rem;
+            font-size: 3rem;
+            line-height: 1;
+            flex-shrink: 0;
         }
 
-        .status-text h2 {
+        .status-content {
+            flex: 1;
+        }
+
+        .grip-type {
             font-size: 1.5rem;
-            margin-bottom: 5px;
+            font-weight: 700;
+            margin-bottom: 4px;
+            color: var(--text-primary);
+            letter-spacing: -0.02em;
         }
 
-        .status-text p {
-            opacity: 0.9;
+        .status-indicator.correct .grip-type {
+            color: var(--success);
         }
 
-        .latency-indicator {
-            font-size: 0.8rem;
-            opacity: 0.6;
-            margin-top: 3px;
+        .status-indicator.warning .grip-type {
+            color: var(--warning);
         }
 
-        .metrics-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-bottom: 20px;
+        .status-indicator.error .grip-type {
+            color: var(--error);
         }
 
-        .metric-card {
-            background: rgba(255, 255, 255, 0.05);
-            padding: 15px;
-            border-radius: 10px;
-            text-align: center;
+        .confidence {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            font-weight: 500;
         }
 
-        .metric-card .label {
-            font-size: 0.9rem;
-            opacity: 0.7;
-            margin-bottom: 5px;
+        /* Recommendation Card */
+        .recommendation-card {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 4px 16px var(--shadow);
+            border: 1px solid var(--border);
         }
 
-        .metric-card .value {
-            font-size: 1.8rem;
-            font-weight: bold;
+        .recommendation-header {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 12px;
         }
 
-        .recommendation {
-            background: rgba(255, 255, 255, 0.15);
-            padding: 20px;
-            border-radius: 10px;
-            margin-top: 20px;
-        }
-
-        .recommendation h3 {
-            margin-bottom: 10px;
-            font-size: 1.2rem;
-        }
-
-        .recommendation p {
-            font-size: 1.1rem;
+        .recommendation-text {
+            font-size: 1rem;
+            color: var(--text-primary);
             line-height: 1.6;
         }
 
-        .finger-curvature {
-            margin-top: 20px;
+        /* Info Card */
+        .info-card {
+            background: linear-gradient(135deg, var(--info-bg) 0%, var(--success-bg) 100%);
+            border-radius: 16px;
+            padding: 24px;
+            border: 1px solid var(--info-border);
         }
 
-        .finger-curvature h3 {
-            margin-bottom: 15px;
+        .info-card h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 12px;
         }
 
-        .finger-bar {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 10px;
+        .info-card ul {
+            list-style: none;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            line-height: 1.8;
         }
 
-        .finger-bar .name {
-            width: 80px;
-            font-size: 0.9rem;
-        }
-
-        .finger-bar .bar-container {
-            flex: 1;
-            height: 20px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
-            overflow: hidden;
-        }
-
-        .finger-bar .bar-fill {
-            height: 100%;
-            transition: width 0.3s ease, background 0.3s ease;
-            border-radius: 10px;
-        }
-
-        .finger-bar .bar-fill.low {
-            background: #ff0000;
-        }
-
-        .finger-bar .bar-fill.medium {
-            background: #ffa500;
-        }
-
-        .finger-bar .bar-fill.high {
-            background: #00ff00;
-        }
-
-        .tolerance-control {
-            background: rgba(255, 255, 255, 0.1);
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-        }
-
-        .tolerance-control h3 {
-            margin-bottom: 10px;
-            font-size: 1.1rem;
-        }
-
-        .tolerance-slider {
-            width: 100%;
-            height: 8px;
-            border-radius: 4px;
-            background: rgba(255, 255, 255, 0.2);
-            outline: none;
-            -webkit-appearance: none;
-        }
-
-        .tolerance-slider::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            background: #fff;
-            cursor: pointer;
-        }
-
-        .tolerance-slider::-moz-range-thumb {
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            background: #fff;
-            cursor: pointer;
-            border: none;
-        }
-
-        .tolerance-value {
-            text-align: center;
-            margin-top: 10px;
-            font-size: 1.2rem;
+        .info-card ul li::before {
+            content: "✓ ";
+            color: var(--success);
             font-weight: bold;
+            margin-right: 8px;
         }
 
-        .loading {
+        /* Footer */
+        footer {
+            background: var(--bg-card);
+            border-top: 1px solid var(--border);
+            margin-top: auto;
+        }
+
+        .footer-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 32px;
+        }
+
+        .footer-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 32px;
+            margin-bottom: 24px;
+        }
+
+        .footer-section h4 {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 12px;
+        }
+
+        .footer-section p,
+        .footer-section a {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            line-height: 1.8;
+            text-decoration: none;
+            display: block;
+        }
+
+        .footer-section a:hover {
+            color: var(--accent);
+        }
+
+        .footer-bottom {
+            padding-top: 24px;
+            border-top: 1px solid var(--border);
             text-align: center;
-            padding: 40px;
-            font-size: 1.2rem;
+            font-size: 0.875rem;
+            color: var(--text-muted);
         }
 
-        .loading::after {
-            content: '';
-            animation: dots 1.5s infinite;
+        /* Animations */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
-        @keyframes dots {
-            0%, 20% { content: '.'; }
-            40% { content: '..'; }
-            60%, 100% { content: '...'; }
+        @keyframes scaleIn {
+            from {
+                opacity: 0;
+                transform: scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
         }
 
-        @media (min-width: 768px) {
-            .main-content {
-                grid-template-columns: 2fr 1fr;
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.05);
+            }
+        }
+
+        .status-indicator.correct .status-icon {
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .content-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .analysis-section {
+                order: 2;
+            }
+
+            .video-section {
+                order: 1;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .header-container {
+                padding: 12px 16px;
+                flex-wrap: wrap;
+                gap: 12px;
+            }
+
+            .logo {
+                font-size: 1.25rem;
+            }
+
+            .nav-buttons {
+                width: 100%;
+                justify-content: flex-start;
+                overflow-x: auto;
+            }
+
+            .nav-btn {
+                font-size: 0.8rem;
+                padding: 6px 12px;
+                white-space: nowrap;
+            }
+
+            main {
+                padding: 16px;
+            }
+
+            .content-grid {
+                gap: 16px;
+            }
+
+            .footer-grid {
+                grid-template-columns: 1fr;
+                gap: 24px;
             }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>🎸 GuitarVision</h1>
-            <p>Real-time Pick Grip Analysis</p>
-        </header>
+    <!-- Header -->
+    <header>
+        <div class="header-container">
+            <a href="/" class="logo">GuitarVision</a>
+            <nav class="nav-buttons">
+                <a href="#" class="nav-btn">О проекте</a>
+                <a href="#" class="nav-btn">Документация</a>
+                <a href="#" class="nav-btn">Литература</a>
+                <a href="#" class="nav-btn">Настройки</a>
+                <a href="#" class="nav-btn primary">Регистрация</a>
+            </nav>
+        </div>
+    </header>
 
-        <div class="main-content">
-            <div class="video-container">
-                <img src="{{ url_for('video_feed') }}" alt="Video Feed">
+    <!-- Main Content -->
+    <main>
+        <div class="content-grid">
+            <!-- Video Section -->
+            <div class="video-section">
+                <div class="video-header">
+                    <h2>Видеопоток</h2>
+                    <p>Анализ хвата медиатора в реальном времени</p>
+                </div>
+                <div class="video-container">
+                    <img src="{{ url_for('video_feed') }}" alt="Видеопоток с камеры">
+                </div>
             </div>
 
-            <div class="analysis-panel">
-                <div id="status" class="status-indicator correct">
-                    <div class="status-icon">✓</div>
-                    <div class="status-text">
-                        <h2 id="grip-type">Analyzing...</h2>
-                        <p id="confidence">Waiting for data</p>
+            <!-- Analysis Section -->
+            <div class="analysis-section">
+                <!-- Status Card -->
+                <div class="status-card loading" id="status-card">
+                    <div class="status-header">Текущий статус</div>
+                    <div class="status-indicator" id="status">
+                        <div class="status-icon">⏳</div>
+                        <div class="status-content">
+                            <div class="grip-type" id="grip-type">Анализ...</div>
+                            <div class="confidence" id="confidence">Ожидание данных</div>
+                        </div>
                     </div>
                 </div>
 
-                <div class="tolerance-control">
-                    <h3>🎯 Strictness Level</h3>
-                    <input type="range" 
-                           id="tolerance" 
-                           class="tolerance-slider" 
-                           min="5" 
-                           max="50" 
-                           value="{{ tolerance * 100 }}"
-                           step="5">
-                    <div class="tolerance-value">
-                        <span id="tolerance-display">{{ (tolerance * 100) | round(0) | int }}%</span>
-                        <span style="font-size: 0.9rem; opacity: 0.7;">
-                            ({{ 'Very Strict' if tolerance <= 0.10 else 'Strict' if tolerance <= 0.20 else 'Medium' if tolerance <= 0.35 else 'Lenient' }})
-                        </span>
-                    </div>
+                <!-- Recommendation Card -->
+                <div class="recommendation-card" id="recommendation-card" style="display: none;">
+                    <div class="recommendation-header">Рекомендация</div>
+                    <div class="recommendation-text" id="recommendation">Ожидание анализа...</div>
                 </div>
 
-                <div class="metrics-grid">
-                    <div class="metric-card">
-                        <div class="label">Pinch Distance</div>
-                        <div class="value" id="pinch-distance">-</div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="label">Pinch Angle</div>
-                        <div class="value" id="pinch-angle">-</div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="label">Thumb Angle</div>
-                        <div class="value" id="thumb-angle">-</div>
-                    </div>
-                </div>
-
-                <div class="recommendation">
-                    <h3>💡 Recommendation</h3>
-                    <p id="recommendation">Wait for analysis...</p>
-                </div>
-
-                <div class="finger-curvature">
-                    <h3>Finger Curvature</h3>
-                    <div id="finger-bars">
-                        <div class="loading">Loading</div>
-                    </div>
+                <!-- Info Card -->
+                <div class="info-card">
+                    <h3>Типы хвата</h3>
+                    <ul>
+                        <li>Правильно - все параметры в норме</li>
+                        <li>Кисть повернута - угол отклонения >40°</li>
+                        <li>Пальцы сжаты - слишком сильное сжатие</li>
+                        <li>Пальцы разжаты - недостаточное сжатие</li>
+                    </ul>
                 </div>
             </div>
         </div>
-    </div>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-container">
+            <div class="footer-grid">
+                <div class="footer-section">
+                    <h4>О проекте</h4>
+                    <p>GuitarVision - система анализа хвата медиатора в реальном времени с использованием компьютерного зрения и машинного обучения.</p>
+                </div>
+                <div class="footer-section">
+                    <h4>Технологии</h4>
+                    <a href="#">Python 3.12</a>
+                    <a href="#">MediaPipe</a>
+                    <a href="#">OpenCV</a>
+                    <a href="#">Flask</a>
+                </div>
+                <div class="footer-section">
+                    <h4>Ресурсы</h4>
+                    <a href="#">Документация</a>
+                    <a href="#">GitHub</a>
+                    <a href="#">Обучающие материалы</a>
+                    <a href="#">FAQ</a>
+                </div>
+                <div class="footer-section">
+                    <h4>Контакты</h4>
+                    <a href="#">Поддержка</a>
+                    <a href="#">Обратная связь</a>
+                    <a href="#">Сообщить об ошибке</a>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2026 GuitarVision. Все права защищены. Разработано для образовательных целей.</p>
+            </div>
+        </div>
+    </footer>
 
     <script>
-        // Обновление данных анализа каждые 500ms
+        // Иконки для разных статусов
+        const statusIcons = {
+            'correct': '✓',
+            'warning': '⚠',
+            'error': '✗',
+            'loading': '⏳'
+        };
+
+        // Обновление данных анализа каждые 100ms
         function updateAnalysis() {
             fetch('/api/analysis')
                 .then(response => response.json())
                 .then(data => {
-                    // Обновляем статус
+                    const statusCard = document.getElementById('status-card');
                     const statusEl = document.getElementById('status');
+                    const iconEl = statusEl.querySelector('.status-icon');
                     const gripTypeEl = document.getElementById('grip-type');
                     const confidenceEl = document.getElementById('confidence');
                     const recommendationEl = document.getElementById('recommendation');
+                    const recommendationCard = document.getElementById('recommendation-card');
                     
+                    // Убираем loading класс
+                    statusCard.classList.remove('loading');
+                    
+                    // Обновляем статус класс
                     statusEl.className = 'status-indicator ' + data.status;
+                    
+                    // Обновляем иконку
+                    const newIcon = statusIcons[data.status] || statusIcons['loading'];
+                    if (iconEl.textContent !== newIcon) {
+                        iconEl.textContent = newIcon;
+                    }
+                    
+                    // Обновляем текст
                     gripTypeEl.textContent = data.grip_type;
-                    confidenceEl.textContent = `Confidence: ${data.confidence}%`;
-                    recommendationEl.textContent = data.recommendation;
-
-                    // Обновляем метрики
-                    document.getElementById('pinch-distance').textContent = data.pinch_distance;
-                    document.getElementById('pinch-angle').textContent = data.pinch_angle + '°';
-                    document.getElementById('thumb-angle').textContent = data.thumb_angle + '°';
-
-                    // Обновляем индикаторы пальцев
-                    updateFingerBars(data.finger_curvature);
+                    confidenceEl.textContent = `Уверенность: ${data.confidence}%`;
+                    
+                    // Обновляем рекомендацию
+                    if (data.recommendation && data.recommendation.trim() !== '') {
+                        recommendationEl.textContent = data.recommendation;
+                        recommendationCard.style.display = 'block';
+                    } else {
+                        recommendationCard.style.display = 'none';
+                    }
                 })
                 .catch(error => {
-                    console.log('Analysis update failed:', error);
+                    console.log('Ошибка обновления анализа:', error);
                 });
         }
 
-        function updateFingerBars(curvature) {
-            const container = document.getElementById('finger-bars');
-            const fingerNames = {
-                'thumb': 'Thumb',
-                'index': 'Index',
-                'middle': 'Middle',
-                'ring': 'Ring',
-                'pinky': 'Pinky'
-            };
-
-            let html = '';
-            for (const [finger, value] of Object.entries(curvature)) {
-                const percentage = Math.min(value / 180 * 100, 100);
-                let barClass = 'low';
-                if (value >= 60) {
-                    barClass = 'high';
-                } else if (value >= 30) {
-                    barClass = 'medium';
-                }
-
-                html += `
-                    <div class="finger-bar">
-                        <div class="name">${fingerNames[finger]}</div>
-                        <div class="bar-container">
-                            <div class="bar-fill ${barClass}" style="width: ${percentage}%"></div>
-                        </div>
-                    </div>
-                `;
-            }
-
-            container.innerHTML = html;
-        }
-
-        // Обновляем tolerance
-        const toleranceSlider = document.getElementById('tolerance');
-        const toleranceDisplay = document.getElementById('tolerance-display');
-
-        let toleranceTimeout = null;
-        toleranceSlider.addEventListener('input', function() {
-            const tolerance = this.value / 100;
-            toleranceDisplay.textContent = this.value + '%';
-            
-            // Debounce отправки запроса
-            if (toleranceTimeout) {
-                clearTimeout(toleranceTimeout);
-            }
-            
-            toleranceTimeout = setTimeout(() => {
-                fetch('/api/tolerance', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ tolerance: tolerance })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    console.log('Tolerance updated:', data.message);
-                })
-                .catch(error => {
-                    console.log('Failed to update tolerance:', error);
-                });
-            }, 500);
-        });
-
-        // Обновляем данные каждые 500ms
-        setInterval(updateAnalysis, 500);
+        // Запускаем обновление каждые 100ms
+        setInterval(updateAnalysis, 100);
+        
+        // Первое обновление сразу
         updateAnalysis();
     </script>
 </body>

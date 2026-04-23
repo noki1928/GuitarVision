@@ -22,22 +22,16 @@ class AudioFeedback:
     FREQUENCIES = {
         GripType.CORRECT: 800,        # Высокий приятный звук
         GripType.TOO_TIGHT: 300,      # Низкий предупреждающий
-        GripType.TOO_LOOSE: 400,      # Средний предупреждающий
-        GripType.WRONG_ANGLE: 350,    # Другой тон
-        GripType.FINGERS_STRAIGHT: 450,
-        GripType.WRONG_THUMB_POSITION: 320,
-        GripType.TENSE_HAND: 280,     # Очень низкий - серьёзное предупреждение
+        GripType.FINGERS_OPEN: 400,   # Средний предупреждающий
+        GripType.ROTATED: 350,        # Другой тон
     }
     
     # Длительность звука (мс)
     DURATIONS = {
         GripType.CORRECT: 200,        # Короткий положительный
         GripType.TOO_TIGHT: 400,      # Длинный предупреждающий
-        GripType.TOO_LOOSE: 300,
-        GripType.WRONG_ANGLE: 350,
-        GripType.FINGERS_STRAIGHT: 300,
-        GripType.WRONG_THUMB_POSITION: 350,
-        GripType.TENSE_HAND: 500,     # Очень длинный
+        GripType.FINGERS_OPEN: 300,
+        GripType.ROTATED: 350,
     }
     
     def __init__(self, enabled: bool = True):

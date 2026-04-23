@@ -13,15 +13,11 @@ import time
 import os
 
 class GripType(Enum):
-    """Pick grip types."""
-    CORRECT = "Correct Grip"
-    TOO_TIGHT = "Too Tight"
-    TOO_LOOSE = "Too Loose"
-    WRONG_ANGLE = "Wrong Pinch Angle"
-    FINGERS_STRAIGHT = "Fingers Not Curved"
-    NO_HAND = "No Hand Detected"
-    WRONG_THUMB_POSITION = "Wrong Thumb Position"
-    TENSE_HAND = "Hand Tension"
+    """Типы хвата (упрощенная классификация)."""
+    CORRECT = "Правильно"
+    FINGERS_OPEN = "Пальцы разжаты"
+    TOO_TIGHT = "Пальцы сильно сжаты"
+    ROTATED = "Кисть повернута"
 
 
 @dataclass
@@ -30,12 +26,9 @@ class GripAnalysis:
     grip_type: GripType
     confidence: float
     pinch_distance: float
-    pinch_angle: float
-    thumb_angle: float
-    finger_curvature: Dict[str, float]
+    hand_rotation: float  # Угол поворота кисти
     finger_positions: Dict[str, bool]
     recommendation: str = ""
-    history: List[float] = field(default_factory=list)
     timestamp: float = field(default_factory=time.time)
 
 
@@ -49,25 +42,17 @@ class PickGripClassifier:
     # Цвета для разных типов хвата
     COLORS: Dict[GripType, Tuple[int, int, int]] = {
         GripType.CORRECT: (0, 255, 0),        # Зелёный
+        GripType.FINGERS_OPEN: (0, 165, 255), # Оранжевый
         GripType.TOO_TIGHT: (0, 0, 255),      # Красный
-        GripType.TOO_LOOSE: (0, 165, 255),    # Оранжевый
-        GripType.WRONG_ANGLE: (255, 0, 255),  # Фиолетовый
-        GripType.FINGERS_STRAIGHT: (255, 255, 0),  # Жёлтый
-        GripType.NO_HAND: (128, 128, 128),    # Серый
-        GripType.WRONG_THUMB_POSITION: (0, 128, 255),  # Синий-оранжевый
-        GripType.TENSE_HAND: (128, 0, 128),   # Тёмно-фиолетовый
+        GripType.ROTATED: (255, 0, 255),      # Фиолетовый
     }
 
     # Рекомендации для каждого типа хвата
     RECOMMENDATIONS: Dict[GripType, str] = {
-        GripType.CORRECT: "Great! Keep playing with this grip",
-        GripType.TOO_TIGHT: "Loosen your grip! Relax your hand, the pick should move freely",
-        GripType.TOO_LOOSE: "Tighten your grip! The pick might slip out",
-        GripType.WRONG_ANGLE: "Change the pick angle. Hold it at 15-30° to the strings",
-        GripType.FINGERS_STRAIGHT: "Curve your fingers! Middle, ring, and pinky should be relaxed and curved",
-        GripType.NO_HAND: "Show your hand to the camera",
-        GripType.WRONG_THUMB_POSITION: "Place thumb opposite to index finger, don't extend it too far",
-        GripType.TENSE_HAND: "Relax your hand! Tension hinders playing technique",
+        GripType.CORRECT: "Отлично! Продолжайте держать так",
+        GripType.FINGERS_OPEN: "Сожмите пальцы! Большой и указательный должны быть ближе",
+        GripType.TOO_TIGHT: "Ослабьте хват! Пальцы слишком сильно сжаты",
+        GripType.ROTATED: "Поверните кисть! Положение отличается от эталона",
     }
 
     def __init__(self, history_length: int = 30, reference_image_path: str = None, tolerance: float = 0.15):
@@ -127,22 +112,48 @@ class PickGripClassifier:
             return False
         
         # Извлекаем метрики из эталонного изображения
+        wrist = landmarks[0]
         thumb_tip = landmarks[4]
-        thumb_ip = landmarks[3]
-        thumb_mcp = landmarks[2]
         index_tip = landmarks[8]
+        index_mcp = landmarks[5]
+        middle_mcp = landmarks[9]
+        middle_tip = landmarks[12]
+        ring_tip = landmarks[16]
+        ring_mcp = landmarks[13]
+        pinky_tip = landmarks[20]
+        pinky_mcp = landmarks[17]
+        
+        # 1. Размер ладони (для нормализации)
+        hand_size = self.calculate_distance(wrist, middle_mcp)
+        
+        # 2. Нормализованное расстояние щипка
+        pinch_distance = self.calculate_distance(thumb_tip, index_tip)
+        normalized_pinch = pinch_distance / hand_size
+        
+        # 3. Сгиб пальцев (средний, безымянный, мизинец)
+        middle_curl = self.calculate_distance(middle_tip, middle_mcp) / hand_size
+        ring_curl = self.calculate_distance(ring_tip, ring_mcp) / hand_size
+        pinky_curl = self.calculate_distance(pinky_tip, pinky_mcp) / hand_size
+        avg_curl = (middle_curl + ring_curl + pinky_curl) / 3
+        
+        # 4. Поворот кисти (вектор запястье → указательный MCP)
+        rotation_vector = index_mcp - wrist
+        rotation_angle = np.degrees(np.arctan2(rotation_vector[1], rotation_vector[0]))
         
         # Ключевые метрики эталона
         self.reference_metrics = {
-            'pinch_distance': float(self.calculate_distance(thumb_tip, index_tip)),
-            'pinch_angle': float(self.calculate_angle(thumb_ip, thumb_tip, index_tip)),
-            'thumb_angle': float(self.calculate_angle(thumb_mcp, thumb_ip, thumb_tip)),
+            'hand_size': float(hand_size),
+            'normalized_pinch': float(normalized_pinch),
+            'avg_curl': float(avg_curl),
+            'rotation_angle': float(rotation_angle),
+            'rotation_vector': rotation_vector[:2].copy(),  # Сохраняем вектор для точного сравнения
         }
         
         print(f"Reference grip loaded successfully:")
-        print(f"  Pinch distance: {self.reference_metrics['pinch_distance']:.1f}")
-        print(f"  Pinch angle: {self.reference_metrics['pinch_angle']:.1f}°")
-        print(f"  Thumb angle: {self.reference_metrics['thumb_angle']:.1f}°")
+        print(f"  Hand size: {hand_size:.1f}")
+        print(f"  Normalized pinch: {normalized_pinch:.3f}")
+        print(f"  Avg finger curl: {avg_curl:.3f}")
+        print(f"  Rotation angle: {rotation_angle:.1f}°")
         
         return True
 
@@ -187,6 +198,28 @@ class PickGripClassifier:
         cos_angle = np.clip(cos_angle, -1.0, 1.0)
         angle = np.degrees(np.arccos(cos_angle))
 
+        return angle
+
+    def calculate_hand_rotation(self, landmarks: list) -> float:
+        """
+        Вычисление угла поворота кисти.
+        Использует вектор от запястья до среднего пальца MCP.
+        
+        Args:
+            landmarks: Список landmarks
+            
+        Returns:
+            Угол поворота в градусах (-180 до 180)
+        """
+        wrist = landmarks[0]
+        middle_mcp = landmarks[9]
+        
+        # Вектор от запястья к среднему пальцу
+        vector = middle_mcp[:2] - wrist[:2]
+        
+        # Угол относительно горизонтали
+        angle = np.degrees(np.arctan2(vector[1], vector[0]))
+        
         return angle
 
     def is_finger_extended(self, landmarks: list, finger_idx: int) -> bool:
@@ -276,7 +309,7 @@ class PickGripClassifier:
 
     def analyze_grip(self, landmarks: list) -> GripAnalysis:
         """
-        Анализ хвата медиатора.
+        Анализ хвата с нормализацией и улучшенной классификацией.
 
         Args:
             landmarks: Список из 21 landmarks кисти
@@ -286,76 +319,59 @@ class PickGripClassifier:
         """
         if not landmarks:
             return GripAnalysis(
-                grip_type=GripType.NO_HAND,
+                grip_type=GripType.FINGERS_OPEN,
                 confidence=0.0,
                 pinch_distance=0.0,
-                pinch_angle=0.0,
-                thumb_angle=0.0,
-                finger_curvature={},
+                hand_rotation=0.0,
                 finger_positions={},
-                recommendation=self.RECOMMENDATIONS[GripType.NO_HAND]
+                recommendation=self.RECOMMENDATIONS[GripType.FINGERS_OPEN]
             )
 
         # Ключевые точки
+        wrist = landmarks[0]
         thumb_tip = landmarks[4]
-        thumb_ip = landmarks[3]  # Межфаланговый сустав
-        thumb_mcp = landmarks[2]
         index_tip = landmarks[8]
-        index_pip = landmarks[6]
+        index_mcp = landmarks[5]
+        middle_mcp = landmarks[9]
         middle_tip = landmarks[12]
         ring_tip = landmarks[16]
+        ring_mcp = landmarks[13]
         pinky_tip = landmarks[20]
+        pinky_mcp = landmarks[17]
 
-        # Расстояние pinch (большой-указательный)
-        pinch_distance = self.calculate_distance(thumb_tip, index_tip)
-
-        # Угол щипка
-        pinch_angle = self.calculate_angle(thumb_ip, thumb_tip, index_tip)
+        # 1. Размер ладони (для нормализации)
+        hand_size = self.calculate_distance(wrist, middle_mcp)
         
-        # Угол большого пальца
-        thumb_angle = self.calculate_angle(thumb_mcp, thumb_ip, thumb_tip)
+        # 2. Нормализованное расстояние щипка
+        pinch_distance = self.calculate_distance(thumb_tip, index_tip)
+        normalized_pinch = pinch_distance / hand_size
+        
+        # 3. Сгиб пальцев (средний, безымянный, мизинец)
+        middle_curl = self.calculate_distance(middle_tip, middle_mcp) / hand_size
+        ring_curl = self.calculate_distance(ring_tip, ring_mcp) / hand_size
+        pinky_curl = self.calculate_distance(pinky_tip, pinky_mcp) / hand_size
+        avg_curl = (middle_curl + ring_curl + pinky_curl) / 3
+        
+        # 4. Поворот кисти (вектор запястье → указательный MCP)
+        rotation_vector = index_mcp - wrist
+        rotation_angle = np.degrees(np.arctan2(rotation_vector[1], rotation_vector[0]))
 
-        # Кривизна пальцев
-        finger_curvature = {
-            'thumb': self.calculate_finger_curvature(landmarks, 4),
-            'index': self.calculate_finger_curvature(landmarks, 8),
-            'middle': self.calculate_finger_curvature(landmarks, 12),
-            'ring': self.calculate_finger_curvature(landmarks, 16),
-            'pinky': self.calculate_finger_curvature(landmarks, 20),
-        }
-
-        # Положение пальцев
+        # Положение пальцев (для дополнительной проверки)
         finger_positions = {
             'thumb_extended': self.is_finger_extended(landmarks, 4),
             'index_extended': self.is_finger_extended(landmarks, 8),
-            'middle_flexed': not self.is_finger_extended(landmarks, 12),
-            'ring_flexed': not self.is_finger_extended(landmarks, 16),
-            'pinky_flexed': not self.is_finger_extended(landmarks, 20),
         }
 
-        # Дополнительные метрики
-        thumb_position_score = self.calculate_thumb_position_score(landmarks)
-        hand_tension = self.calculate_hand_tension(landmarks)
-
-        # Добавляем в историю
-        self.distance_history.append(pinch_distance)
-        if len(self.distance_history) > self.history_length:
-            self.distance_history.pop(0)
-
-        # Классификация
+        # Классификация с новыми метриками
         grip_type, confidence = self._classify(
-            pinch_distance, pinch_angle, thumb_angle,
-            finger_positions, finger_curvature,
-            thumb_position_score, hand_tension
+            normalized_pinch, avg_curl, rotation_angle, rotation_vector, finger_positions
         )
 
         analysis = GripAnalysis(
             grip_type=grip_type,
             confidence=confidence,
             pinch_distance=pinch_distance,
-            pinch_angle=pinch_angle,
-            thumb_angle=thumb_angle,
-            finger_curvature=finger_curvature,
+            hand_rotation=rotation_angle,
             finger_positions=finger_positions,
             recommendation=self.RECOMMENDATIONS[grip_type]
         )
@@ -363,102 +379,68 @@ class PickGripClassifier:
         self.last_analysis = analysis
         return analysis
 
-    def _classify(self, pinch_distance: float, pinch_angle: float,
-                  thumb_angle: float, finger_positions: Dict[str, bool],
-                  finger_curvature: Dict[str, float],
-                  thumb_position_score: float, hand_tension: float
+    def _classify(self, normalized_pinch: float, avg_curl: float, 
+                  rotation_angle: float, rotation_vector: np.ndarray,
+                  finger_positions: Dict[str, bool]
                   ) -> Tuple[GripType, float]:
         """
-        Классификация хвата на основе правил.
+        Улучшенная классификация хвата (4 типа) с нормализацией.
         
-        Если загружены эталонные метрики, использует их для сравнения.
-        Иначе использует стандартные пороги.
-
-        Пороги настроены эмпирически и могут требовать калибровки.
+        Приоритет проверок:
+        1. Угол поворота кисти (наиболее важно)
+        2. Сгиб пальцев (средний, безымянный, мизинец)
+        3. Расстояние щипка (большой-указательный)
+        
+        Требует наличия эталонного изображения.
         """
-        # Проверка: все пальцы выпрямлены (нет хвата) - только это считаем неправильным
-        if (finger_positions['thumb_extended'] and
-            finger_positions['index_extended'] and
-            not finger_positions['middle_flexed']):
-            return GripType.FINGERS_STRAIGHT, 0.9
-
-        # Если есть эталонные метрики, используем их для классификации
-        if self.reference_metrics:
-            return self._classify_with_reference(
-                pinch_distance, pinch_angle, thumb_angle,
-                finger_positions, finger_curvature
-            )
+        # Эталон обязателен
+        if not self.reference_metrics:
+            return GripType.FINGERS_OPEN, 0.5
         
-        # Стандартная классификация (без эталона) - очень мягкая
-        # Только проверяем что пальцы согнуты и есть какой-то зажим
-        fingers_curved = (
-            finger_positions['middle_flexed'] or
-            finger_positions['ring_flexed'] or
-            finger_positions['pinky_flexed']
-        )
-        
-        if fingers_curved:
-            return GripType.CORRECT, 0.8
-        
-        # Пограничные случаи
-        return GripType.CORRECT, 0.5
-    
-    def _classify_with_reference(self, pinch_distance: float, pinch_angle: float,
-                                  thumb_angle: float, finger_positions: Dict[str, bool],
-                                  finger_curvature: Dict[str, float]
-                                  ) -> Tuple[GripType, float]:
-        """
-        Классификация на основе сравнения с эталонным изображением.
-        Сравниваем ТОЛЬКО расстояние pinch. Угол не учитываем.
-        
-        self.tolerance определяет допустимое отклонение:
-        - 0.05 = очень строго (5% отклонения)
-        - 0.15 = строго (15% отклонения, по умолчанию)
-        - 0.30 = средне (30% отклонения)
-        - 0.50 = мягко (50% отклонения)
-        """
         ref = self.reference_metrics
         
-        # Вычисляем отклонение ТОЛЬКО по расстоянию
-        dist_deviation = abs(pinch_distance - ref['pinch_distance']) / max(ref['pinch_distance'], 1.0)
+        # Пороги для тестирования
+        rotation_threshold = 30  # 40° для поворота кисти
+        curl_tolerance_tight = 0.50  # 50% для TOO_TIGHT (сжатые пальцы)
+        curl_tolerance_open = 1.50   # 150% для FINGERS_OPEN (разжатые пальцы - только когда совсем прямые)
+        pinch_tolerance = self.tolerance  # 15% по умолчанию
         
-        # Проверяем, НЕ раскрыты ли все пальцы (самая важная проверка)
-        all_fingers_straight = (
-            finger_positions['thumb_extended'] and
-            finger_positions['index_extended'] and
-            not finger_positions['middle_flexed']
+        # ПРИОРИТЕТ 1: Проверка угла поворота кисти (самое важное)
+        # Вычисляем угол между векторами
+        ref_vector = ref['rotation_vector']
+        current_vector = rotation_vector[:2]
+        
+        # Угол между векторами через скалярное произведение
+        cos_angle = np.dot(ref_vector, current_vector) / (
+            np.linalg.norm(ref_vector) * np.linalg.norm(current_vector)
         )
+        cos_angle = np.clip(cos_angle, -1.0, 1.0)
+        rotation_deviation = np.degrees(np.arccos(cos_angle))
         
-        if all_fingers_straight:
-            return GripType.FINGERS_STRAIGHT, 0.9
+        if rotation_deviation > rotation_threshold:
+            confidence = min(1.0, rotation_deviation / 90)
+            return GripType.ROTATED, confidence
         
-        # Строгая классификация на основе tolerance
-        # Если отклонение в пределах допуска - правильный хват
-        if dist_deviation <= self.tolerance:
-            confidence = max(0.85, 1.0 - dist_deviation)
-            return GripType.CORRECT, confidence
+        # ПРИОРИТЕТ 2: Проверка сгиба пальцев (средний, безымянный, мизинец)
+        # Создаем асимметричное "окно правильности" - разжатость детектируется реже
+        curl_lower_bound = ref['avg_curl'] * (1 - curl_tolerance_tight)
+        curl_upper_bound = ref['avg_curl'] * (1 + curl_tolerance_open)
         
-        # Отклонение超出 tolerance - определяем тип проблемы
-        # Слишком сильный зажим (расстояние значительно меньше эталона)
-        if pinch_distance < ref['pinch_distance'] * (1 - self.tolerance):
-            confidence = min(1.0, (ref['pinch_distance'] - pinch_distance) / ref['pinch_distance'] + 0.5)
+        # Пальцы слишком сжаты (меньше нижней границы)
+        if avg_curl < curl_lower_bound:
+            curl_deviation = (curl_lower_bound - avg_curl) / ref['avg_curl']
+            confidence = min(1.0, curl_deviation + 0.5)
             return GripType.TOO_TIGHT, confidence
         
-        # Слишком слабый зажим (расстояние значительно больше эталона)
-        if pinch_distance > ref['pinch_distance'] * (1 + self.tolerance):
-            confidence = min(1.0, (pinch_distance - ref['pinch_distance']) / ref['pinch_distance'] + 0.5)
-            return GripType.TOO_LOOSE, confidence
+        # Пальцы слишком разжаты (больше верхней границы - только когда совсем прямые)
+        if avg_curl > curl_upper_bound:
+            curl_deviation = (avg_curl - curl_upper_bound) / ref['avg_curl']
+            confidence = min(1.0, curl_deviation + 0.5)
+            return GripType.FINGERS_OPEN, confidence
         
-        # Небольшое отклонение - всё ещё приемлемо, но не идеально
-        if dist_deviation <= self.tolerance * 1.5:
-            confidence = max(0.6, 1.0 - dist_deviation)
-            return GripType.CORRECT, confidence
-        
-        # Значительное отклонение - неправильный хват
-        if pinch_distance < ref['pinch_distance']:
-            return GripType.TOO_TIGHT, min(1.0, dist_deviation)
-        else:
-            return GripType.TOO_LOOSE, min(1.0, dist_deviation)
+        # Сгиб пальцев в пределах нормы - хват правильный!
+        # Расстояние щипка больше не проверяется
+        return GripType.CORRECT, 0.9
 
     def draw_analysis(self, frame: np.ndarray, analysis: GripAnalysis) -> None:
         """

@@ -2,3 +2,6 @@ __pycache__
 screenshot.png
 hands.task
 ref.jpg
+.opencode/
+AGENTS.md
+venv/
